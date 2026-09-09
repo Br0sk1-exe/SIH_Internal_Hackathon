@@ -37,16 +37,17 @@ def predict_flood_risk(features_dict):
 # ---- Sanity tests ----
 if __name__ == "__main__":
     test_input = {
-        "month": 7,
-        "rainfall_mm_hr": 5.0,
-        "rainfall_cum_3hr": 12.0,
-        "rainfall_cum_24hr": 40.0,
-        "rainfall_cum_72hr": 110.0,
-        "water_level_ratio": 0.3,
-        "water_level_rate_change": 0.05,
-        "slope_deg": 30,
-        "drainage_density": 0.6,
-        "landslide_susceptibility": 2,
+    
+    "rainfall_mm_hr": 65.0,
+    "rainfall_cum_3hr": 150.0,
+    "rainfall_cum_24hr": 280.0,
+    "rainfall_cum_72hr": 400.0,
+    "water_level_ratio": 1.6,
+    "water_level_rate_change": 1.1,
+    "slope_deg": 42,
+    "drainage_density": 0.9,
+    "landslide_susceptibility": 2,
+    "month": 7,
     }
     print("Low-risk-ish scenario result:", predict_flood_risk(test_input))
 
