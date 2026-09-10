@@ -3,6 +3,8 @@ from main_backend import (
     predict_from_map_coordinates,
     predict_from_map_coordinates_get,
     predict_from_explicit_features,
+    get_global_shap_importance,
+    load_frontend_html,
     MapClickRequest,
     DirectFeaturesRequest
 )
@@ -97,6 +99,32 @@ def run_tests():
     assert data6["status"] == "SUCCESS"
     print(f"\n[PASS] 7. POST /api/predict/features [Direct Feature Vector]:")
     print(f"     Risk: {data6['prediction']['risk_level']} (Confidence: {data6['prediction']['confidence']})")
+
+    # 8. Test Real-Time SHAP Local Explanation
+    assert "shap_explanation" in data2
+    assert "contributions" in data2["shap_explanation"]
+    assert len(data2["shap_explanation"]["contributions"]) == 10
+    top_driver = data2["shap_explanation"]["contributions"][0]
+    print(f"\n[PASS] 8. SHAP Local Explainability Verified:")
+    print(f"     Base Expected Value: {data2['shap_explanation']['base_expected_value']}")
+    print(f"     Top Driver: {top_driver['label']} ({top_driver['shap_value']:+.4f}) -> {top_driver['impact']}")
+    print(f"     Executive Summary: {data2['shap_explanation']['summary']}")
+
+    # 9. Test Global SHAP Feature Importance Endpoint
+    global_shap = get_global_shap_importance()
+    assert global_shap["status"] == "success"
+    assert global_shap["features_count"] == 10
+    print(f"\n[PASS] 9. GET /api/shap/global [Model-Wide XAI Weights]:")
+    print(f"     #1 Feature: {global_shap['global_importance'][0]['label']} ({global_shap['global_importance'][0]['pct']}%)")
+    print(f"     #2 Feature: {global_shap['global_importance'][1]['label']} ({global_shap['global_importance'][1]['pct']}%)")
+
+    # 10. Test Frontend Dashboard HTML Serving
+    html_doc = load_frontend_html()
+    assert len(html_doc) > 1000
+    assert "AURA-FLOOD" in html_doc
+    assert "shap-bar-chart" in html_doc
+    assert "TreeSHAP" in html_doc
+    print(f"\n[PASS] 10. Frontend UI Template Serving Verified ({len(html_doc)} bytes loaded)")
 
     print("\n" + "=" * 75)
     print("ALL TESTS PASSED! BACKEND LOGIC & INFERENCE PIPELINE VERIFIED!")
