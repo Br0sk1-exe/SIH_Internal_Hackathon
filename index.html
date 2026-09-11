@@ -1,10 +1,1362 @@
 <!DOCTYPE html>
-<!-- Direct Root Entrypoint for AURA-FLOOD AI Dashboard -->
-<!-- Automatically loads frontend/index.html or renders full UI -->
-<script>
-    window.location.href = "frontend/index.html";
-</script>
-<noscript>
-    <meta http-equiv="refresh" content="0; url=frontend/index.html" />
-    <p>Redirecting to <a href="frontend/index.html">AURA-FLOOD AI Dashboard</a>...</p>
-</noscript>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AURA-FLOOD AI | SIH Flash Flood Early Warning & Explainable AI</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Leaflet CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            950: '#060911',
+                            900: '#0B0F19',
+                            850: '#101626',
+                            800: '#162035',
+                            700: '#1E2D4A',
+                            600: '#2A3C61'
+                        },
+                        danger: {
+                            500: '#EF4444',
+                            600: '#DC2626',
+                            900: '#7F1D1D'
+                        },
+                        warning: {
+                            500: '#F97316',
+                            600: '#EA580C'
+                        },
+                        watch: {
+                            500: '#F59E0B',
+                            600: '#D97706'
+                        },
+                        safe: {
+                            500: '#10B981',
+                            600: '#059669'
+                        },
+                        cyan: {
+                            400: '#22D3EE',
+                            500: '#06B6D4'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #060911;
+            color: #F1F5F9;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            overflow: hidden;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0B0F19;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1E2D4A;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #2A3C61;
+        }
+
+        /* Glassmorphism Classes */
+        .glass-panel {
+            background: rgba(16, 22, 38, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .glass-card {
+            background: rgba(22, 32, 53, 0.7);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        /* Liquid Gauge Bar */
+        .liquid-container {
+            position: relative;
+            width: 100%;
+            height: 180px;
+            background: #0B0F19;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #1E2D4A;
+        }
+        .liquid-fill {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            transition: height 0.8s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.8s ease;
+        }
+        .danger-line {
+            position: absolute;
+            left: 0;
+            right: 0;
+            border-top: 2px dashed #EF4444;
+            z-index: 10;
+        }
+
+        /* Tab Active Underline */
+        .tab-btn.active {
+            color: #38BDF8;
+            border-bottom: 2px solid #38BDF8;
+            background: rgba(56, 189, 248, 0.08);
+        }
+
+        /* Leaflet Popups */
+        .leaflet-popup-content-wrapper {
+            background: #0F172A !important;
+            color: #F8FAFC !important;
+            border: 1px solid #334155;
+            border-radius: 8px;
+        }
+        .leaflet-popup-tip {
+            background: #0F172A !important;
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col antialiased select-none">
+
+    <!-- ======================================================================= -->
+    <!-- 1. HEADER COMMAND BAR -->
+    <!-- ======================================================================= -->
+    <header class="h-16 glass-panel border-b border-white/10 px-5 flex items-center justify-between z-30 shrink-0">
+        <!-- Project Branding -->
+        <div class="flex items-center gap-3.5">
+            <div class="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 shadow-lg shadow-cyan-500/20">
+                <i class="fa-solid fa-water text-white text-lg"></i>
+                <span class="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-safe-500 border-2 border-dark-900"></span>
+            </div>
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="font-extrabold text-lg tracking-tight text-white flex items-center gap-1.5">
+                        AURA-FLOOD <span class="text-xs uppercase px-2 py-0.5 rounded-md bg-cyan-500/20 text-cyan-400 font-mono font-bold border border-cyan-500/30">AI 2.0</span>
+                    </span>
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-semibold border border-purple-500/30">
+                        <i class="fa-solid fa-award mr-1 text-purple-400"></i>Smart India Hackathon
+                    </span>
+                </div>
+                <p class="text-xs text-slate-400 hidden sm:block">Flash Flood Early Warning & Explainable AI (TreeSHAP) for Hilly Watersheds</p>
+            </div>
+        </div>
+
+        <!-- Quick Basin Selector Dropdown -->
+        <div class="hidden md:flex items-center gap-2 bg-dark-850 px-3.5 py-1.5 rounded-lg border border-white/10">
+            <i class="fa-solid fa-mountain-sun text-cyan-400 text-xs"></i>
+            <span class="text-xs text-slate-400 font-medium">Catchment Basin:</span>
+            <select id="basin-selector" onchange="jumpToStation(this.value)" class="bg-transparent text-xs font-semibold text-white focus:outline-none cursor-pointer">
+                <option value="" disabled selected>Loading basins...</option>
+            </select>
+        </div>
+
+        <!-- Right Indicators -->
+        <div class="flex items-center gap-3">
+            <!-- Model Engine Pill -->
+            <div class="hidden lg:flex items-center gap-2 bg-dark-850/80 px-3 py-1.5 rounded-lg border border-white/10 text-xs font-mono">
+                <span class="relative flex h-2 w-2">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-safe-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-safe-500"></span>
+                </span>
+                <span class="text-slate-300 font-medium">LightGBM • TreeSHAP XAI</span>
+            </div>
+
+            <!-- Audio Siren Alert Toggle -->
+            <button id="siren-toggle-btn" onclick="toggleSirenAudio()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-dark-850 hover:bg-dark-800 border border-white/10 text-xs font-medium text-slate-300 transition-all hover:border-cyan-500/40" title="Toggle Red Alert Emergency Audio Warning">
+                <i id="siren-icon" class="fa-solid fa-volume-high text-cyan-400"></i>
+                <span id="siren-status-text" class="hidden sm:inline">Audio Alert</span>
+            </button>
+
+            <!-- Digital Clock -->
+            <div class="hidden xl:flex flex-col items-end text-right pl-2 border-l border-white/10 font-mono">
+                <span id="digital-clock" class="text-xs font-bold text-slate-200">--:--:-- IST</span>
+                <span id="digital-date" class="text-[10px] text-slate-400">Loading...</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- ======================================================================= -->
+    <!-- 2. TOP HERO KPI METRIC STRIP -->
+    <!-- ======================================================================= -->
+    <section class="glass-panel border-b border-white/10 px-5 py-2.5 grid grid-cols-2 md:grid-cols-5 gap-3 shrink-0 z-20">
+        <!-- 1. Risk Alert Level -->
+        <div class="flex items-center gap-3 p-2 rounded-xl glass-card border border-white/5 relative overflow-hidden">
+            <div id="risk-glow-bg" class="absolute inset-0 opacity-10 bg-safe-500 pointer-events-none transition-colors duration-500"></div>
+            <div id="risk-badge-icon" class="w-10 h-10 rounded-xl bg-safe-500/20 border border-safe-500/40 text-safe-400 flex items-center justify-center shrink-0 text-lg transition-all duration-500">
+                <i class="fa-solid fa-shield-halved"></i>
+            </div>
+            <div class="min-w-0">
+                <div class="flex items-center gap-1.5">
+                    <span class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Hazard Stage</span>
+                    <span id="confidence-pill" class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-white/10 text-cyan-300 font-bold">--%</span>
+                </div>
+                <div id="risk-badge-text" class="text-sm font-extrabold text-safe-400 truncate tracking-tight">STANDBY</div>
+            </div>
+        </div>
+
+        <!-- 2. Active Basin & Location -->
+        <div class="flex items-center gap-3 p-2 rounded-xl glass-card border border-white/5">
+            <div class="w-10 h-10 rounded-xl bg-blue-500/20 border border-blue-500/40 text-blue-400 flex items-center justify-center shrink-0 text-lg">
+                <i class="fa-solid fa-location-dot"></i>
+            </div>
+            <div class="min-w-0">
+                <span class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Catchment Watershed</span>
+                <div id="kpi-basin-name" class="text-sm font-bold text-white truncate">Click Map to Select</div>
+                <span id="kpi-coords" class="text-[10px] font-mono text-slate-400 truncate block">Lat -- / Lon --</span>
+            </div>
+        </div>
+
+        <!-- 3. Precipitation Rate -->
+        <div class="flex items-center gap-3 p-2 rounded-xl glass-card border border-white/5">
+            <div class="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-400 flex items-center justify-center shrink-0 text-lg">
+                <i class="fa-solid fa-cloud-showers-heavy"></i>
+            </div>
+            <div class="min-w-0">
+                <span class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Precipitation Rate</span>
+                <div class="flex items-baseline gap-1">
+                    <span id="kpi-rainfall-rate" class="text-sm font-mono font-extrabold text-cyan-300">0.0</span>
+                    <span class="text-[10px] text-slate-400">mm/hr</span>
+                </div>
+                <span id="kpi-rainfall-status" class="text-[10px] font-medium text-slate-400 truncate block">24h Cum: 0 mm</span>
+            </div>
+        </div>
+
+        <!-- 4. River Stage & Surge Ratio -->
+        <div class="flex items-center gap-3 p-2 rounded-xl glass-card border border-white/5">
+            <div class="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-500/40 text-indigo-400 flex items-center justify-center shrink-0 text-lg">
+                <i class="fa-solid fa-arrows-up-down"></i>
+            </div>
+            <div class="min-w-0">
+                <span class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">River Water Ratio</span>
+                <div class="flex items-baseline gap-1">
+                    <span id="kpi-water-ratio" class="text-sm font-mono font-extrabold text-white">0.00x</span>
+                    <span id="kpi-water-level-m" class="text-[10px] text-slate-400">(-- / -- m)</span>
+                </div>
+                <span id="kpi-water-rate" class="text-[10px] font-medium text-slate-400 truncate block">Surge: +0.0 m/hr</span>
+            </div>
+        </div>
+
+        <!-- 5. Topographic Vulnerability (Slope & Landslide) -->
+        <div class="flex items-center gap-3 p-2 rounded-xl glass-card border border-white/5 col-span-2 md:col-span-1">
+            <div class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center shrink-0 text-lg">
+                <i class="fa-solid fa-mountain"></i>
+            </div>
+            <div class="min-w-0">
+                <span class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Terrain Relief</span>
+                <div class="flex items-baseline gap-1.5">
+                    <span id="kpi-slope-deg" class="text-sm font-mono font-extrabold text-amber-300">0.0°</span>
+                    <span id="kpi-landslide-pill" class="text-[10px] px-1.5 py-0.2 rounded font-semibold bg-amber-500/20 text-amber-300">Moderate</span>
+                </div>
+                <span id="kpi-drainage" class="text-[10px] text-slate-400 truncate block">Drainage: 0.00 km/km²</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- ======================================================================= -->
+    <!-- 3. MAIN WORKSPACE: GIS TOPO MAP (LEFT) + XAI / TELEMETRY SUITE (RIGHT) -->
+    <!-- ======================================================================= -->
+    <main class="flex-1 flex overflow-hidden relative">
+        
+        <!-- =================================================================== -->
+        <!-- LEFT COLUMN: GIS TOPO MAP & HIGH-CONTRAST CONTROLS (58% WIDTH) -->
+        <!-- =================================================================== -->
+        <div class="flex-1 flex flex-col border-r border-white/10 relative overflow-hidden">
+            
+            <!-- Map Toolbar: Scenarios & Region Focus Controls -->
+            <div class="glass-panel px-4 py-2 flex flex-wrap items-center justify-between gap-3 border-b border-white/10 z-20">
+                
+                <!-- Simulation Scenarios -->
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                        <i class="fa-solid fa-sliders text-cyan-400"></i>Scenarios:
+                    </span>
+                    <div class="inline-flex rounded-lg bg-dark-900 p-1 border border-white/10" id="scenario-btn-group">
+                        <button onclick="setScenario('live', this)" class="scenario-btn active px-3 py-1 text-xs font-bold rounded-md transition-all text-white bg-blue-600 shadow-md shadow-blue-500/20" title="Real-time live precipitation API query">
+                            <i class="fa-solid fa-satellite-dish mr-1 text-cyan-300"></i>Live Weather
+                        </button>
+                        <button onclick="setScenario('cloudburst', this)" class="scenario-btn px-3 py-1 text-xs font-semibold rounded-md transition-all text-slate-300 hover:text-white" title="Simulate extreme cloudburst (>85mm/hr) and sudden river level spike">
+                            <i class="fa-solid fa-bolt mr-1 text-danger-500"></i>🚨 Cloudburst
+                        </button>
+                        <button onclick="setScenario('heavy_monsoon', this)" class="scenario-btn px-3 py-1 text-xs font-semibold rounded-md transition-all text-slate-300 hover:text-white" title="High sustained monsoon rainfall">
+                            <i class="fa-solid fa-cloud-showers-water mr-1 text-warning-500"></i>Monsoon Surge
+                        </button>
+                        <button onclick="setScenario('moderate_rain', this)" class="scenario-btn px-3 py-1 text-xs font-semibold rounded-md transition-all text-slate-300 hover:text-white" title="Passing rain showers">
+                            <i class="fa-solid fa-cloud-rain mr-1 text-watch-500"></i>Moderate
+                        </button>
+                        <button onclick="setScenario('dry_normal', this)" class="scenario-btn px-3 py-1 text-xs font-semibold rounded-md transition-all text-slate-300 hover:text-white" title="Dry baseline weather">
+                            <i class="fa-solid fa-sun mr-1 text-safe-500"></i>Fair Weather
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Prominent High-Visibility Region Quick-Jump Buttons -->
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-400 hidden xl:inline">Region:</span>
+                    <button onclick="focusRegion('himalayas')" class="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold border border-sky-400 shadow-md shadow-sky-600/30 flex items-center gap-1.5 transition-all">
+                        <span>🏔️</span>
+                        <span>Himalayas</span>
+                    </button>
+                    <button onclick="focusRegion('ghats')" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold border border-emerald-400 shadow-md shadow-emerald-600/30 flex items-center gap-1.5 transition-all">
+                        <span>🌴</span>
+                        <span>Western Ghats</span>
+                    </button>
+                    <button onclick="focusRegion('northeast')" class="px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold border border-violet-400 shadow-md shadow-violet-600/30 flex items-center gap-1.5 transition-all">
+                        <span>🌿</span>
+                        <span>North East</span>
+                    </button>
+                    <button onclick="resetMapView()" class="px-2.5 py-1.5 rounded-lg bg-dark-800 hover:bg-dark-700 text-slate-200 text-xs font-bold border border-white/20 transition-all flex items-center gap-1" title="Reset to Full View of India">
+                        <i class="fa-solid fa-rotate-left text-xs"></i>
+                        <span>Reset</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Prominent, High-Contrast Map Instruction Banner -->
+            <div id="map-instruction-banner" class="bg-gradient-to-r from-blue-900/95 via-cyan-950/90 to-blue-900/95 border-b border-cyan-500/40 px-5 py-2 flex items-center justify-between text-xs text-cyan-100 z-10 shadow-lg shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <span class="flex h-3 w-3 relative shrink-0">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-90"></span>
+                        <span class="relative inline-flex rounded-full h-3 w-3 bg-cyan-500"></span>
+                    </span>
+                    <span id="map-instruction-text" class="font-bold text-white tracking-wide text-xs sm:text-sm">
+                        📍 <span class="text-cyan-300">Click anywhere on the map of India</span> to query the ML model and evaluate real-time SHAP feature attribution.
+                    </span>
+                </div>
+                <div id="map-selected-pill" class="hidden font-mono text-xs bg-dark-950/90 px-3 py-1 rounded-lg border border-cyan-400/50 text-cyan-300 font-bold shadow-inner">
+                    Selected: --
+                </div>
+            </div>
+
+            <!-- Leaflet Map Canvas (ESRI World Topo Map - Topography & Relief) -->
+            <div id="map" class="flex-1 w-full h-full bg-[#cbd5e1]"></div>
+
+            <!-- Domain Boundary Guardrail Alert Overlay -->
+            <div id="guardrail-modal" class="hidden absolute inset-x-6 bottom-6 z-20 glass-panel border border-warning-500/60 bg-dark-900/95 p-4 rounded-2xl shadow-2xl backdrop-blur-xl animate-fade-in">
+                <div class="flex items-start gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-warning-500/20 text-warning-400 flex items-center justify-center shrink-0 text-2xl border border-warning-500/40">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-sm font-bold text-warning-400 uppercase tracking-wide flex items-center gap-2">
+                                Topographical Boundary Guardrail Triggered
+                            </h3>
+                            <button onclick="closeGuardrail()" class="text-slate-400 hover:text-white text-sm">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                        <p id="guardrail-message" class="text-xs text-slate-200 mt-1.5 leading-relaxed">
+                            Clicked location falls outside modeled mountainous watershed boundaries.
+                        </p>
+                        <div class="mt-3 flex items-center gap-3 text-[11px] font-mono text-slate-300 bg-dark-950/80 p-2.5 rounded-lg border border-white/10">
+                            <span>Nearest Mountain Basin: <strong id="guardrail-nearest" class="text-white">Dehradun Hills</strong></span>
+                            <span>•</span>
+                            <span>Distance: <strong id="guardrail-dist" class="text-amber-400 font-bold">205.7 km</strong></span>
+                            <span>•</span>
+                            <span class="text-cyan-400">Flash flood physics calibrated for steep slopes &ge; 8.0°</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Map Legend -->
+            <div class="absolute bottom-4 left-4 z-10 glass-panel px-3 py-2 rounded-xl border border-white/10 text-[11px] hidden sm:flex items-center gap-3 shadow-lg">
+                <span class="text-slate-400 font-bold uppercase text-[9px]">Legend:</span>
+                <span class="flex items-center gap-1.5 text-danger-400 font-semibold"><span class="w-2.5 h-2.5 rounded-full bg-danger-500"></span>Severe</span>
+                <span class="flex items-center gap-1.5 text-warning-400 font-semibold"><span class="w-2.5 h-2.5 rounded-full bg-warning-500"></span>High</span>
+                <span class="flex items-center gap-1.5 text-watch-400 font-semibold"><span class="w-2.5 h-2.5 rounded-full bg-watch-500"></span>Medium</span>
+                <span class="flex items-center gap-1.5 text-safe-400 font-semibold"><span class="w-2.5 h-2.5 rounded-full bg-safe-500"></span>Low</span>
+                <span class="flex items-center gap-1.5 text-cyan-400 font-semibold"><span class="w-2.5 h-2.5 rounded-full bg-cyan-500 border border-white"></span>Monitored Catchment</span>
+            </div>
+        </div>
+
+        <!-- =================================================================== -->
+        <!-- RIGHT COLUMN: MULTI-TAB INTELLIGENCE & XAI SUITE (42% WIDTH) -->
+        <!-- =================================================================== -->
+        <div class="w-full lg:w-[470px] xl:w-[520px] flex flex-col bg-dark-900 overflow-hidden shrink-0 z-10">
+            
+            <!-- Tab Navigation Header (3 Core Tabs) -->
+            <div class="flex border-b border-white/10 bg-dark-850 shrink-0">
+                <button onclick="switchTab('shap')" id="tab-btn-shap" class="tab-btn active flex-1 py-3 px-2 text-xs font-bold text-center transition-all flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-brain text-cyan-400"></i>
+                    <span>SHAP Explain (XAI)</span>
+                </button>
+                <button onclick="switchTab('hydro')" id="tab-btn-hydro" class="tab-btn flex-1 py-3 px-2 text-xs font-semibold text-slate-400 text-center transition-all flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-chart-line text-blue-400"></i>
+                    <span>Hydrology & Surge</span>
+                </button>
+                <button onclick="switchTab('simulator')" id="tab-btn-simulator" class="tab-btn flex-1 py-3 px-2 text-xs font-semibold text-slate-400 text-center transition-all flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-gamepad text-purple-400"></i>
+                    <span>What-If Simulator</span>
+                </button>
+            </div>
+
+            <!-- Tab Content Body -->
+            <div class="flex-1 overflow-y-auto p-4 space-y-4">
+
+                <!-- ----------------------------------------------------------- -->
+                <!-- TAB 1: SHAP EXPLAINABLE AI (XAI) -->
+                <!-- ----------------------------------------------------------- -->
+                <div id="tab-content-shap" class="space-y-4">
+                    
+                    <!-- XAI Star Header Banner -->
+                    <div class="glass-card p-3.5 rounded-xl border border-cyan-500/20 bg-gradient-to-r from-cyan-950/40 via-dark-800 to-blue-950/30">
+                        <div class="flex items-center justify-between mb-1.5">
+                            <span class="text-xs font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i>TreeSHAP Interpretability Engine
+                            </span>
+                            <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 font-semibold border border-cyan-500/30">
+                                Exact Attribution
+                            </span>
+                        </div>
+                        <p id="shap-executive-summary" class="text-xs text-slate-200 leading-relaxed font-medium">
+                            Click on any mountain basin or map point to evaluate exact SHAP feature contributions for the predicted flood stage.
+                        </p>
+                    </div>
+
+                    <!-- Local SHAP Feature Attribution Chart -->
+                    <div class="glass-card p-4 rounded-xl border border-white/10">
+                        <div class="flex items-center justify-between mb-3">
+                            <div>
+                                <h4 class="text-xs font-bold text-white flex items-center gap-1.5">
+                                    <i class="fa-solid fa-chart-bar text-cyan-400"></i>
+                                    <span>SHAP Contribution Breakdown (&phi;)</span>
+                                </h4>
+                                <span class="text-[10px] text-slate-400">Impact on predicted risk: Red (+ Risk) vs Green (- Safe)</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-[10px] font-mono">
+                                <span class="text-slate-400">Base Expected Value: <strong id="shap-base-val" class="text-slate-200">0.00</strong></span>
+                            </div>
+                        </div>
+
+                        <!-- Canvas for Diverging Horizontal Bar Chart -->
+                        <div class="relative h-64 w-full">
+                            <canvas id="shap-bar-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Feature Impact Breakdown Table -->
+                    <div class="glass-card p-3.5 rounded-xl border border-white/10">
+                        <h4 class="text-xs font-bold text-white mb-2.5 flex items-center justify-between">
+                            <span class="flex items-center gap-1.5">
+                                <i class="fa-solid fa-list-check text-slate-400"></i>Feature Weights & Domain Rationales
+                            </span>
+                            <span class="text-[10px] text-slate-400">10 Hydrological Parameters</span>
+                        </h4>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-[11px]">
+                                <thead>
+                                    <tr class="border-b border-white/10 text-slate-400 font-semibold">
+                                        <th class="pb-1.5">Feature</th>
+                                        <th class="pb-1.5 text-right">Telemetry</th>
+                                        <th class="pb-1.5 text-right">SHAP (&phi;)</th>
+                                        <th class="pb-1.5 text-right">Impact</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="shap-table-body" class="divide-y divide-white/5 font-mono">
+                                    <tr>
+                                        <td colspan="4" class="py-4 text-center text-slate-500 font-sans">
+                                            Awaiting map coordinate selection...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Global Feature Importance Accordion / Card -->
+                    <div class="glass-card p-3.5 rounded-xl border border-white/10">
+                        <div class="flex items-center justify-between cursor-pointer" onclick="toggleGlobalImportance()">
+                            <span class="text-xs font-bold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-network-wired text-purple-400"></i>
+                                Global Model Feature Importance (Dataset Wide)
+                            </span>
+                            <i id="global-chevron" class="fa-solid fa-chevron-down text-slate-400 text-xs transition-transform"></i>
+                        </div>
+                        <div id="global-importance-drawer" class="hidden mt-3 pt-3 border-t border-white/10 space-y-2">
+                            <div class="h-44 relative w-full">
+                                <canvas id="global-importance-chart"></canvas>
+                            </div>
+                            <p class="text-[10px] text-slate-300 leading-relaxed">
+                                <strong>Why this matters to SIH Judges:</strong> In steep mountainous terrain, the trained LightGBM model places over <strong>50% of decision weight</strong> on immediate hydrological triggers (River water level ratio, surge rate, and instantaneous rainfall intensity), reflecting physical flash flood mechanisms.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ----------------------------------------------------------- -->
+                <!-- TAB 2: HYDROLOGY & RIVER SURGE -->
+                <!-- ----------------------------------------------------------- -->
+                <div id="tab-content-hydro" class="hidden space-y-4">
+                    
+                    <!-- River Water Stage Visual Column -->
+                    <div class="glass-card p-4 rounded-xl border border-white/10">
+                        <div class="flex items-center justify-between mb-2">
+                            <h4 class="text-xs font-bold text-white flex items-center gap-1.5">
+                                <i class="fa-solid fa-water-ladder text-blue-400"></i>
+                                <span>Mountain River Gauge vs Danger Level</span>
+                            </h4>
+                            <span id="river-stage-tag" class="text-[10px] font-mono px-2 py-0.5 rounded font-bold bg-safe-500/20 text-safe-400">SAFE</span>
+                        </div>
+
+                        <div class="flex items-center gap-4 mt-3">
+                            <!-- Visual Liquid Gauge Meter -->
+                            <div class="liquid-container w-24 shrink-0 flex flex-col justify-end">
+                                <!-- Danger Threshold Dashed Line -->
+                                <div id="danger-line" class="danger-line" style="bottom: 75%;">
+                                    <span class="absolute right-1 -top-4 text-[9px] font-mono text-danger-400 font-bold bg-dark-900/80 px-1 rounded">DANGER</span>
+                                </div>
+                                <!-- Rising Liquid Column -->
+                                <div id="liquid-bar" class="liquid-fill bg-blue-500" style="height: 45%;"></div>
+                            </div>
+
+                            <!-- Metrics Readout -->
+                            <div class="flex-1 space-y-2 font-mono text-xs">
+                                <div class="bg-dark-950/60 p-2.5 rounded-lg border border-white/5">
+                                    <span class="text-[10px] text-slate-400 block font-sans">Current River Level</span>
+                                    <span id="hydro-water-level" class="text-lg font-extrabold text-white">0.00 m</span>
+                                </div>
+                                <div class="bg-dark-950/60 p-2.5 rounded-lg border border-white/5">
+                                    <span class="text-[10px] text-slate-400 block font-sans">Critical Danger Mark</span>
+                                    <span id="hydro-danger-level" class="text-sm font-bold text-danger-400">0.00 m</span>
+                                </div>
+                                <div class="bg-dark-950/60 p-2.5 rounded-lg border border-white/5">
+                                    <span class="text-[10px] text-slate-400 block font-sans">Water Surge Velocity</span>
+                                    <span id="hydro-surge-rate" class="text-sm font-bold text-amber-300">+0.00 m/hr</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Rainfall Hyetograph Breakdown -->
+                    <div class="glass-card p-4 rounded-xl border border-white/10">
+                        <h4 class="text-xs font-bold text-white mb-3 flex items-center gap-1.5">
+                            <i class="fa-solid fa-cloud-showers-heavy text-cyan-400"></i>
+                            <span>Precipitation Matrix (Catchment Accumulation)</span>
+                        </h4>
+                        <div class="grid grid-cols-2 gap-2.5 font-mono">
+                            <div class="bg-dark-950/60 p-3 rounded-lg border border-white/5">
+                                <span class="text-[10px] text-slate-400 block font-sans">1-Hr Intensity</span>
+                                <span id="hydro-rain-1hr" class="text-base font-extrabold text-cyan-300">0.0 mm/hr</span>
+                                <div class="w-full bg-dark-800 h-1 rounded-full mt-1.5 overflow-hidden">
+                                    <div id="rain-1hr-bar" class="bg-cyan-500 h-full w-0 transition-all duration-500"></div>
+                                </div>
+                            </div>
+                            <div class="bg-dark-950/60 p-3 rounded-lg border border-white/5">
+                                <span class="text-[10px] text-slate-400 block font-sans">3-Hr Cumulative</span>
+                                <span id="hydro-rain-3hr" class="text-base font-extrabold text-blue-300">0.0 mm</span>
+                                <div class="w-full bg-dark-800 h-1 rounded-full mt-1.5 overflow-hidden">
+                                    <div id="rain-3hr-bar" class="bg-blue-500 h-full w-0 transition-all duration-500"></div>
+                                </div>
+                            </div>
+                            <div class="bg-dark-950/60 p-3 rounded-lg border border-white/5">
+                                <span class="text-[10px] text-slate-400 block font-sans">24-Hr Cumulative</span>
+                                <span id="hydro-rain-24hr" class="text-base font-extrabold text-indigo-300">0.0 mm</span>
+                                <div class="w-full bg-dark-800 h-1 rounded-full mt-1.5 overflow-hidden">
+                                    <div id="rain-24hr-bar" class="bg-indigo-500 h-full w-0 transition-all duration-500"></div>
+                                </div>
+                            </div>
+                            <div class="bg-dark-950/60 p-3 rounded-lg border border-white/5">
+                                <span class="text-[10px] text-slate-400 block font-sans">72-Hr Cumulative</span>
+                                <span id="hydro-rain-72hr" class="text-base font-extrabold text-purple-300">0.0 mm</span>
+                                <div class="w-full bg-dark-800 h-1 rounded-full mt-1.5 overflow-hidden">
+                                    <div id="rain-72hr-bar" class="bg-purple-500 h-full w-0 transition-all duration-500"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Geomorphological Catchment Specs -->
+                    <div class="glass-card p-4 rounded-xl border border-white/10 space-y-3">
+                        <h4 class="text-xs font-bold text-white flex items-center gap-1.5">
+                            <i class="fa-solid fa-mountain text-amber-400"></i>
+                            <span>Catchment Geomorphology & Terrain Incline</span>
+                        </h4>
+                        <div class="grid grid-cols-3 gap-2 text-center">
+                            <div class="bg-dark-950/60 p-2.5 rounded-lg border border-white/5">
+                                <span class="text-[10px] text-slate-400 block">Slope Incline</span>
+                                <span id="hydro-slope" class="text-sm font-bold text-amber-300 font-mono">0.0°</span>
+                            </div>
+                            <div class="bg-dark-950/60 p-2.5 rounded-lg border border-white/5">
+                                <span class="text-[10px] text-slate-400 block">Drainage</span>
+                                <span id="hydro-drainage-val" class="text-sm font-bold text-white font-mono">0.00</span>
+                            </div>
+                            <div class="bg-dark-950/60 p-2.5 rounded-lg border border-white/5">
+                                <span class="text-[10px] text-slate-400 block">Landslides</span>
+                                <span id="hydro-landslide-tag" class="text-xs font-bold text-warning-400">Mod</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ----------------------------------------------------------- -->
+                <!-- TAB 3: "WHAT-IF" SIMULATOR FOR JUDGES -->
+                <!-- ----------------------------------------------------------- -->
+                <div id="tab-content-simulator" class="hidden space-y-4">
+                    <div class="glass-card p-3.5 rounded-xl border border-purple-500/20 bg-purple-950/20">
+                        <h4 class="text-xs font-bold text-purple-300 flex items-center gap-1.5 mb-1">
+                            <i class="fa-solid fa-flask text-purple-400"></i>Judge Simulation Sandbox
+                        </h4>
+                        <p class="text-[11px] text-slate-300 leading-relaxed">
+                            Interactively test hypothetical meteorological scenarios. Drag sliders to adjust rainfall, river water level ratio, and slope to inspect instant ML & SHAP recalculations.
+                        </p>
+                    </div>
+
+                    <div class="glass-card p-4 rounded-xl border border-white/10 space-y-3.5 text-xs">
+                        <!-- Slider 1: Rainfall Intensity -->
+                        <div>
+                            <div class="flex justify-between text-slate-300 font-medium mb-1">
+                                <span>Rainfall Intensity (mm/hr):</span>
+                                <span id="sim-val-rain" class="font-mono text-cyan-300 font-bold">50.0</span>
+                            </div>
+                            <input type="range" id="sim-input-rain" min="0" max="150" step="1" value="50" oninput="updateSimSlider('rain', this.value)" class="w-full accent-cyan-500 cursor-pointer">
+                        </div>
+
+                        <!-- Slider 2: 24hr Cumulative Rainfall -->
+                        <div>
+                            <div class="flex justify-between text-slate-300 font-medium mb-1">
+                                <span>24-Hour Cumulative (mm):</span>
+                                <span id="sim-val-rain24" class="font-mono text-blue-300 font-bold">120.0</span>
+                            </div>
+                            <input type="range" id="sim-input-rain24" min="0" max="450" step="5" value="120" oninput="updateSimSlider('rain24', this.value)" class="w-full accent-blue-500 cursor-pointer">
+                        </div>
+
+                        <!-- Slider 3: Water Level Ratio -->
+                        <div>
+                            <div class="flex justify-between text-slate-300 font-medium mb-1">
+                                <span>River Water Level Ratio (curr/danger):</span>
+                                <span id="sim-val-water" class="font-mono text-indigo-300 font-bold">1.25</span>
+                            </div>
+                            <input type="range" id="sim-input-water" min="0.1" max="2.5" step="0.05" value="1.25" oninput="updateSimSlider('water', this.value)" class="w-full accent-indigo-500 cursor-pointer">
+                        </div>
+
+                        <!-- Slider 4: Water Rate of Change -->
+                        <div>
+                            <div class="flex justify-between text-slate-300 font-medium mb-1">
+                                <span>Water Level Rate of Change (m/hr):</span>
+                                <span id="sim-val-rate" class="font-mono text-purple-300 font-bold">0.80</span>
+                            </div>
+                            <input type="range" id="sim-input-rate" min="-0.5" max="3.5" step="0.1" value="0.8" oninput="updateSimSlider('rate', this.value)" class="w-full accent-purple-500 cursor-pointer">
+                        </div>
+
+                        <!-- Slider 5: Terrain Slope -->
+                        <div>
+                            <div class="flex justify-between text-slate-300 font-medium mb-1">
+                                <span>Terrain Slope (°):</span>
+                                <span id="sim-val-slope" class="font-mono text-amber-300 font-bold">32.0</span>
+                            </div>
+                            <input type="range" id="sim-input-slope" min="8" max="50" step="1" value="32" oninput="updateSimSlider('slope', this.value)" class="w-full accent-amber-500 cursor-pointer">
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="pt-2 flex items-center gap-2">
+                            <button onclick="executeCustomSimulation()" class="flex-1 py-2.5 px-3 rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 font-bold text-white text-xs shadow-lg shadow-purple-500/20 transition-all">
+                                <i class="fa-solid fa-play mr-1.5"></i>Run What-If Inference
+                            </button>
+                            <button onclick="resetSimSlidersToBasin()" class="py-2.5 px-3 rounded-lg bg-dark-850 hover:bg-dark-800 border border-white/10 text-slate-300 text-xs font-semibold">
+                                <i class="fa-solid fa-rotate-left"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- ======================================================================= -->
+    <!-- 4. JAVASCRIPT LOGIC & STATE ENGINE -->
+    <!-- ======================================================================= -->
+    <script>
+        // API Base URL (auto-detects localhost or defaults to http://127.0.0.1:8000)
+        const API_BASE = (window.location.protocol.startsWith('http')) 
+            ? window.location.origin 
+            : 'http://127.0.0.1:8000';
+
+        // State Store
+        let currentScenario = 'live';
+        let currentStation = null;
+        let stationsList = [];
+        let map = null;
+        let clickMarker = null;
+        let stationMarkers = {};
+        let shapChart = null;
+        let globalChart = null;
+        let currentPredictionData = null;
+        let isSirenEnabled = true;
+
+        // Sound Synthesizer (AudioContext)
+        let audioCtx = null;
+
+        function playAlertSound(riskLevel) {
+            if (!isSirenEnabled) return;
+            if (riskLevel !== 'High' && riskLevel !== 'Severe') return;
+
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+
+                const now = audioCtx.currentTime;
+                const isSevere = (riskLevel === 'Severe');
+                const cycles = isSevere ? 3 : 2;
+                const cycleDuration = isSevere ? 0.8 : 0.6;
+                const totalDuration = cycles * cycleDuration;
+
+                // Primary siren oscillator — wailing sweep
+                const osc1 = audioCtx.createOscillator();
+                const gain1 = audioCtx.createGain();
+                osc1.type = isSevere ? 'sawtooth' : 'square';
+
+                // Schedule frequency sweeps (up-down wail per cycle)
+                for (let i = 0; i < cycles; i++) {
+                    const cycleStart = now + i * cycleDuration;
+                    const freqLow = isSevere ? 400 : 500;
+                    const freqHigh = isSevere ? 900 : 800;
+                    osc1.frequency.setValueAtTime(freqLow, cycleStart);
+                    osc1.frequency.linearRampToValueAtTime(freqHigh, cycleStart + cycleDuration * 0.5);
+                    osc1.frequency.linearRampToValueAtTime(freqLow, cycleStart + cycleDuration);
+                }
+
+                // Pulsing gain envelope
+                gain1.gain.setValueAtTime(0, now);
+                for (let i = 0; i < cycles; i++) {
+                    const cycleStart = now + i * cycleDuration;
+                    gain1.gain.linearRampToValueAtTime(isSevere ? 0.18 : 0.12, cycleStart + 0.05);
+                    gain1.gain.setValueAtTime(isSevere ? 0.18 : 0.12, cycleStart + cycleDuration - 0.08);
+                    gain1.gain.linearRampToValueAtTime(0.02, cycleStart + cycleDuration);
+                }
+                gain1.gain.linearRampToValueAtTime(0.001, now + totalDuration);
+
+                osc1.connect(gain1);
+                gain1.connect(audioCtx.destination);
+                osc1.start(now);
+                osc1.stop(now + totalDuration + 0.05);
+
+                // Secondary overtone for harsh texture (Severe only)
+                if (isSevere) {
+                    const osc2 = audioCtx.createOscillator();
+                    const gain2 = audioCtx.createGain();
+                    osc2.type = 'square';
+                    osc2.frequency.setValueAtTime(1200, now);
+                    for (let i = 0; i < cycles; i++) {
+                        const cycleStart = now + i * cycleDuration;
+                        osc2.frequency.setValueAtTime(1200, cycleStart);
+                        osc2.frequency.linearRampToValueAtTime(1800, cycleStart + cycleDuration * 0.5);
+                        osc2.frequency.linearRampToValueAtTime(1200, cycleStart + cycleDuration);
+                    }
+                    gain2.gain.setValueAtTime(0.04, now);
+                    gain2.gain.linearRampToValueAtTime(0.001, now + totalDuration);
+                    osc2.connect(gain2);
+                    gain2.connect(audioCtx.destination);
+                    osc2.start(now);
+                    osc2.stop(now + totalDuration + 0.05);
+                }
+            } catch (err) {
+                console.warn("Audio synthesizer error:", err);
+            }
+        }
+
+        function toggleSirenAudio() {
+            isSirenEnabled = !isSirenEnabled;
+            const icon = document.getElementById('siren-icon');
+            const text = document.getElementById('siren-status-text');
+            if (isSirenEnabled) {
+                icon.className = 'fa-solid fa-volume-high text-cyan-400';
+                text.textContent = 'Audio Alert';
+            } else {
+                icon.className = 'fa-solid fa-volume-xmark text-slate-500';
+                text.textContent = 'Muted';
+            }
+        }
+
+        // Clock Update
+        function startDigitalClock() {
+            function update() {
+                const now = new Date();
+                document.getElementById('digital-clock').textContent = now.toLocaleTimeString('en-IN') + ' IST';
+                document.getElementById('digital-date').textContent = now.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' });
+            }
+            update();
+            setInterval(update, 1000);
+        }
+
+        // Initialize Map using the previous ESRI World Topo Map (mountain relief & contours)
+        function initMap() {
+            map = L.map('map', {
+                center: [28.5, 82.0],
+                zoom: 5,
+                zoomControl: true
+            });
+
+            // ESRI World Topo Map for realistic mountain terrain visualization (same as original demo)
+            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
+                attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
+                maxZoom: 18
+            }).addTo(map);
+
+            // Map Click Event
+            map.on('click', function(e) {
+                handleMapClick(e.latlng.lat, e.latlng.lng);
+            });
+        }
+
+        // Fetch Stations on Load
+        async function loadStations() {
+            const selector = document.getElementById('basin-selector');
+            try {
+                const res = await fetch(`${API_BASE}/api/stations`);
+                const data = await res.json();
+                stationsList = data.stations || [];
+                
+                selector.innerHTML = '<option value="" disabled selected>Select Mountain Basin...</option>';
+                
+                stationsList.forEach(st => {
+                    // Populate dropdown
+                    const opt = document.createElement('option');
+                    opt.value = st.region;
+                    opt.textContent = `${st.region} (${st.state})`;
+                    selector.appendChild(opt);
+
+                    // Add to Map with clean circular markers (from demo)
+                    const circle = L.circleMarker([st.lat, st.lon], {
+                        radius: 7,
+                        fillColor: '#0284c7',
+                        color: '#ffffff',
+                        weight: 2,
+                        opacity: 1,
+                        fillOpacity: 0.85
+                    }).addTo(map);
+
+                    circle.bindTooltip(`<b>${st.region}, ${st.state}</b><br>Slope: ${st.slope_deg}° | Landslide: ${st.landslide_susceptibility}`, {
+                        direction: 'top'
+                    });
+
+                    circle.on('click', function(e) {
+                        L.DomEvent.stopPropagation(e);
+                        selector.value = st.region;
+                        handleMapClick(st.lat, st.lon);
+                    });
+
+                    stationMarkers[st.region] = circle;
+                });
+
+                // Default selection: Chamoli or Shimla
+                if (stationsList.length > 0) {
+                    const defaultBasin = stationsList.find(s => s.region === "Chamoli") || stationsList[0];
+                    handleMapClick(defaultBasin.lat, defaultBasin.lon);
+                }
+            } catch (err) {
+                console.warn("Backend API unavailable, using fallback dataset mode:", err);
+            }
+        }
+
+        // Scenario Switcher
+        function setScenario(scenario, btn) {
+            currentScenario = scenario;
+            document.querySelectorAll('.scenario-btn').forEach(b => {
+                b.className = 'scenario-btn px-3 py-1 text-xs font-semibold rounded-md transition-all text-slate-300 hover:text-white';
+            });
+            btn.className = 'scenario-btn active px-3 py-1 text-xs font-bold rounded-md transition-all text-white bg-blue-600 shadow-md shadow-blue-500/20';
+
+            if (currentStation) {
+                handleMapClick(currentStation.lat, currentStation.lon);
+            }
+        }
+
+        // Handle Map Coordinates Click
+        async function handleMapClick(lat, lon) {
+            closeGuardrail();
+
+            // Set/Update Target Marker with standard Leaflet pin marker
+            if (clickMarker) map.removeLayer(clickMarker);
+            clickMarker = L.marker([lat, lon]).addTo(map);
+
+            currentStation = { lat, lon };
+
+            // Update Map Instruction Banner
+            const instructionText = document.getElementById('map-instruction-text');
+            const selectedPill = document.getElementById('map-selected-pill');
+            selectedPill.classList.remove('hidden');
+            selectedPill.textContent = `${lat.toFixed(4)}°N, ${lon.toFixed(4)}°E`;
+            instructionText.innerHTML = `📍 Coordinates active: <strong class="text-cyan-300">${lat.toFixed(4)}°N, ${lon.toFixed(4)}°E</strong>. Click any other location to compare.`;
+
+            try {
+                const res = await fetch(`${API_BASE}/api/predict/coordinates`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        lat: lat,
+                        lon: lon,
+                        scenario: currentScenario
+                    })
+                });
+                const data = await res.json();
+                renderPredictionResponse(data);
+            } catch (err) {
+                console.warn("Fetch error:", err);
+            }
+        }
+
+        // Render Prediction Response
+        function renderPredictionResponse(data) {
+            currentPredictionData = data;
+
+            // Handle Guardrail Trigger
+            if (data.status === 'GUARDRAIL_TRIGGERED') {
+                showGuardrail(data);
+                return;
+            }
+
+            const pred = data.prediction;
+            const loc = data.location;
+            const tele = data.hydrological_telemetry;
+            const topo = data.topographical_profile;
+            const shap = data.shap_explanation || pred.shap_explanation;
+
+            // 1. Update Hero KPIs
+            updateHeroKPIs(pred, loc, tele, topo);
+
+            // 2. Play Audio Alert if High or Severe
+            playAlertSound(pred.risk_level);
+
+            // 3. Render SHAP Chart & Table
+            if (shap && shap.contributions) {
+                renderSHAPVisualization(shap);
+            }
+
+            // 4. Update Hydrology Visuals
+            updateHydrologyVisuals(tele, topo);
+
+            // Update dropdown if exact match
+            const sel = document.getElementById('basin-selector');
+            if (loc && loc.matched_basin) {
+                sel.value = loc.matched_basin;
+                document.getElementById('map-selected-pill').textContent = `${loc.matched_basin} (${loc.state}) • ${loc.distance_km} km`;
+            }
+        }
+
+        // Update Hero KPIs
+        function updateHeroKPIs(pred, loc, tele, topo) {
+            const riskText = document.getElementById('risk-badge-text');
+            const riskIcon = document.getElementById('risk-badge-icon');
+            const riskGlow = document.getElementById('risk-glow-bg');
+            const confPill = document.getElementById('confidence-pill');
+
+            riskText.textContent = pred.risk_level.toUpperCase();
+            riskText.style.color = pred.color_code;
+            riskGlow.style.backgroundColor = pred.color_code;
+            confPill.textContent = pred.confidence;
+
+            // Update badge icon
+            if (pred.risk_level === 'Severe') {
+                riskIcon.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i>';
+                riskIcon.className = 'w-10 h-10 rounded-xl bg-danger-500/20 border border-danger-500/40 text-danger-400 flex items-center justify-center shrink-0 text-lg animate-bounce';
+            } else if (pred.risk_level === 'High') {
+                riskIcon.innerHTML = '<i class="fa-solid fa-radiation"></i>';
+                riskIcon.className = 'w-10 h-10 rounded-xl bg-warning-500/20 border border-warning-500/40 text-warning-400 flex items-center justify-center shrink-0 text-lg';
+            } else if (pred.risk_level === 'Medium') {
+                riskIcon.innerHTML = '<i class="fa-solid fa-eye"></i>';
+                riskIcon.className = 'w-10 h-10 rounded-xl bg-watch-500/20 border border-watch-500/40 text-watch-400 flex items-center justify-center shrink-0 text-lg';
+            } else {
+                riskIcon.innerHTML = '<i class="fa-solid fa-shield-halved"></i>';
+                riskIcon.className = 'w-10 h-10 rounded-xl bg-safe-500/20 border border-safe-500/40 text-safe-400 flex items-center justify-center shrink-0 text-lg';
+            }
+
+            // Location
+            document.getElementById('kpi-basin-name').textContent = `${loc.matched_basin} (${loc.state})`;
+            document.getElementById('kpi-coords').textContent = `Target: ${loc.clicked_lat.toFixed(2)}°N, ${loc.clicked_lon.toFixed(2)}°E (${loc.distance_km} km)`;
+
+            // Rainfall
+            document.getElementById('kpi-rainfall-rate').textContent = tele.rainfall_mm_hr.toFixed(1);
+            document.getElementById('kpi-rainfall-status').textContent = `24h: ${tele.rainfall_cum_24hr} mm • 3h: ${tele.rainfall_cum_3hr} mm`;
+
+            // Water Ratio
+            document.getElementById('kpi-water-ratio').textContent = `${tele.water_level_ratio}x`;
+            document.getElementById('kpi-water-level-m').textContent = `(${tele.water_level_m}m / ${tele.danger_level_m}m)`;
+            document.getElementById('kpi-water-rate').textContent = `Surge: ${tele.water_level_rate_change > 0 ? '+' : ''}${tele.water_level_rate_change} m/hr`;
+
+            // Terrain
+            document.getElementById('kpi-slope-deg').textContent = `${topo.slope_deg.toFixed(1)}°`;
+            document.getElementById('kpi-drainage').textContent = `Drainage: ${topo.drainage_density} km/km²`;
+            
+            const landPill = document.getElementById('kpi-landslide-pill');
+            landPill.textContent = topo.landslide_susceptibility;
+            if (topo.landslide_susceptibility === 'High') {
+                landPill.className = 'text-[10px] px-1.5 py-0.2 rounded font-semibold bg-danger-500/20 text-danger-300';
+            } else {
+                landPill.className = 'text-[10px] px-1.5 py-0.2 rounded font-semibold bg-amber-500/20 text-amber-300';
+            }
+        }
+
+        // Render SHAP Visualization (Diverging Bar Chart & Table)
+        function renderSHAPVisualization(shap) {
+            document.getElementById('shap-executive-summary').textContent = shap.summary || "Attribution completed.";
+            document.getElementById('shap-base-val').textContent = shap.base_expected_value.toFixed(2);
+
+            const contributions = shap.contributions || [];
+
+            // 1. Chart.js Diverging Bar Chart
+            const labels = contributions.map(c => c.label);
+            const values = contributions.map(c => c.shap_value);
+            const backgroundColors = values.map(v => v >= 0 ? 'rgba(239, 68, 68, 0.85)' : 'rgba(16, 185, 129, 0.85)');
+            const borderColors = values.map(v => v >= 0 ? '#EF4444' : '#10B981');
+
+            const ctx = document.getElementById('shap-bar-chart').getContext('2d');
+            if (shapChart) shapChart.destroy();
+
+            shapChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'SHAP Value (\u03C6)',
+                        data: values,
+                        backgroundColor: backgroundColors,
+                        borderColor: borderColors,
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const val = context.raw;
+                                    const item = contributions[context.dataIndex];
+                                    return `SHAP: ${val > 0 ? '+' : ''}${val.toFixed(3)} | Measured: ${item.value} ${item.unit}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(255,255,255,0.08)' },
+                            ticks: { color: '#94A3B8', font: { family: 'JetBrains Mono', size: 10 } }
+                        },
+                        y: {
+                            grid: { display: false },
+                            ticks: { color: '#E2E8F0', font: { size: 10 } }
+                        }
+                    }
+                }
+            });
+
+            // 2. Populate Feature Table
+            const tbody = document.getElementById('shap-table-body');
+            tbody.innerHTML = '';
+            contributions.forEach(item => {
+                const tr = document.createElement('tr');
+                const isPositive = item.shap_value >= 0;
+                tr.className = 'hover:bg-white/5 transition-colors';
+                tr.innerHTML = `
+                    <td class="py-2 font-sans font-medium text-slate-200">${item.label}</td>
+                    <td class="py-2 text-right text-slate-400 font-mono">${item.value} ${item.unit}</td>
+                    <td class="py-2 text-right font-mono font-bold ${isPositive ? 'text-danger-400' : 'text-safe-400'}">
+                        ${isPositive ? '+' : ''}${item.shap_value.toFixed(3)}
+                    </td>
+                    <td class="py-2 text-right">
+                        <span class="text-[9px] px-1.5 py-0.5 rounded font-sans font-bold ${isPositive ? 'bg-danger-500/20 text-danger-300' : 'bg-safe-500/20 text-safe-300'}">
+                            ${isPositive ? 'Increases Risk' : 'Mitigates Risk'}
+                        </span>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Update Hydrology Visuals
+        function updateHydrologyVisuals(tele, topo) {
+            const liquidBar = document.getElementById('liquid-bar');
+            const stageTag = document.getElementById('river-stage-tag');
+            
+            let visualPct = Math.min(Math.max((tele.water_level_ratio / 1.5) * 75, 10), 100);
+            liquidBar.style.height = `${visualPct}%`;
+
+            if (tele.water_level_ratio >= 1.0) {
+                liquidBar.style.backgroundColor = '#EF4444';
+                stageTag.className = 'text-[10px] font-mono px-2 py-0.5 rounded font-bold bg-danger-500/20 text-danger-400';
+                stageTag.textContent = 'DANGER FLOOD STAGE';
+            } else if (tele.water_level_ratio >= 0.75) {
+                liquidBar.style.backgroundColor = '#F59E0B';
+                stageTag.className = 'text-[10px] font-mono px-2 py-0.5 rounded font-bold bg-watch-500/20 text-watch-400';
+                stageTag.textContent = 'ALERT WARNING STAGE';
+            } else {
+                liquidBar.style.backgroundColor = '#0284c7';
+                stageTag.className = 'text-[10px] font-mono px-2 py-0.5 rounded font-bold bg-safe-500/20 text-safe-400';
+                stageTag.textContent = 'NORMAL BASEFLOW';
+            }
+
+            document.getElementById('hydro-water-level').textContent = `${tele.water_level_m} m`;
+            document.getElementById('hydro-danger-level').textContent = `${tele.danger_level_m} m`;
+            document.getElementById('hydro-surge-rate').textContent = `${tele.water_level_rate_change > 0 ? '+' : ''}${tele.water_level_rate_change} m/hr`;
+
+            // Rainfall Matrix
+            document.getElementById('hydro-rain-1hr').textContent = `${tele.rainfall_mm_hr} mm/hr`;
+            document.getElementById('hydro-rain-3hr').textContent = `${tele.rainfall_cum_3hr} mm`;
+            document.getElementById('hydro-rain-24hr').textContent = `${tele.rainfall_cum_24hr} mm`;
+            document.getElementById('hydro-rain-72hr').textContent = `${tele.rainfall_cum_72hr} mm`;
+
+            document.getElementById('rain-1hr-bar').style.width = `${Math.min((tele.rainfall_mm_hr / 100) * 100, 100)}%`;
+            document.getElementById('rain-3hr-bar').style.width = `${Math.min((tele.rainfall_cum_3hr / 150) * 100, 100)}%`;
+            document.getElementById('rain-24hr-bar').style.width = `${Math.min((tele.rainfall_cum_24hr / 300) * 100, 100)}%`;
+            document.getElementById('rain-72hr-bar').style.width = `${Math.min((tele.rainfall_cum_72hr / 400) * 100, 100)}%`;
+
+            // Topography
+            document.getElementById('hydro-slope').textContent = `${topo.slope_deg}°`;
+            document.getElementById('hydro-drainage-val').textContent = topo.drainage_density;
+            document.getElementById('hydro-landslide-tag').textContent = topo.landslide_susceptibility;
+        }
+
+        // Show/Close Guardrail
+        function showGuardrail(data) {
+            document.getElementById('guardrail-message').textContent = data.message;
+            document.getElementById('guardrail-nearest').textContent = `${data.location.nearest_basin} (${data.location.nearest_state || 'Hills'})`;
+            document.getElementById('guardrail-dist').textContent = `${data.location.distance_km} km`;
+            document.getElementById('guardrail-modal').classList.remove('hidden');
+
+            document.getElementById('risk-badge-text').textContent = 'OUT OF BOUNDS';
+            document.getElementById('risk-badge-text').style.color = '#9CA3AF';
+            document.getElementById('confidence-pill').textContent = 'N/A';
+        }
+
+        function closeGuardrail() {
+            document.getElementById('guardrail-modal').classList.add('hidden');
+        }
+
+        // Tab Switching
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(b => {
+                b.classList.remove('active');
+                b.classList.add('text-slate-400');
+            });
+            document.getElementById(`tab-btn-${tabId}`).classList.add('active');
+            document.getElementById(`tab-btn-${tabId}`).classList.remove('text-slate-400');
+
+            ['shap', 'hydro', 'simulator'].forEach(t => {
+                const el = document.getElementById(`tab-content-${t}`);
+                if (el) el.classList.add('hidden');
+            });
+            const target = document.getElementById(`tab-content-${tabId}`);
+            if (target) target.classList.remove('hidden');
+        }
+
+        // What-If Simulator Helpers
+        function updateSimSlider(param, val) {
+            document.getElementById(`sim-val-${param}`).textContent = val;
+        }
+
+        async function executeCustomSimulation() {
+            const rain = parseFloat(document.getElementById('sim-input-rain').value);
+            const rain24 = parseFloat(document.getElementById('sim-input-rain24').value);
+            const waterRatio = parseFloat(document.getElementById('sim-input-water').value);
+            const rate = parseFloat(document.getElementById('sim-input-rate').value);
+            const slope = parseFloat(document.getElementById('sim-input-slope').value);
+
+            try {
+                const res = await fetch(`${API_BASE}/api/predict/features`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        month: 7,
+                        rainfall_mm_hr: rain,
+                        rainfall_cum_3hr: rain * 2.2,
+                        rainfall_cum_24hr: rain24,
+                        rainfall_cum_72hr: rain24 * 1.5,
+                        water_level_ratio: waterRatio,
+                        water_level_rate_change: rate,
+                        slope_deg: slope,
+                        drainage_density: 0.65,
+                        landslide_susceptibility: 2
+                    })
+                });
+                const data = await res.json();
+                
+                const syntheticResp = {
+                    status: 'SUCCESS',
+                    location: {
+                        matched_basin: "Custom Simulation",
+                        state: "What-If Sandbox",
+                        clicked_lat: currentStation ? currentStation.lat : 30.40,
+                        clicked_lon: currentStation ? currentStation.lon : 79.32,
+                        distance_km: 0.0
+                    },
+                    topographical_profile: {
+                        slope_deg: slope,
+                        drainage_density: 0.65,
+                        landslide_susceptibility: "High"
+                    },
+                    hydrological_telemetry: {
+                        rainfall_mm_hr: rain,
+                        rainfall_cum_3hr: round(rain * 2.2, 1),
+                        rainfall_cum_24hr: rain24,
+                        rainfall_cum_72hr: round(rain24 * 1.5, 1),
+                        water_level_ratio: waterRatio,
+                        water_level_rate_change: rate,
+                        water_level_m: round(12.0 * waterRatio, 2),
+                        danger_level_m: 12.0
+                    },
+                    prediction: data.prediction,
+                    shap_explanation: data.prediction.shap_explanation
+                };
+
+                renderPredictionResponse(syntheticResp);
+                switchTab('shap');
+            } catch (err) {
+                console.error("Simulation error:", err);
+            }
+        }
+
+        function resetSimSlidersToBasin() {
+            if (currentPredictionData && currentPredictionData.hydrological_telemetry) {
+                const tele = currentPredictionData.hydrological_telemetry;
+                const topo = currentPredictionData.topographical_profile;
+
+                document.getElementById('sim-input-rain').value = tele.rainfall_mm_hr;
+                document.getElementById('sim-val-rain').textContent = tele.rainfall_mm_hr;
+
+                document.getElementById('sim-input-rain24').value = tele.rainfall_cum_24hr;
+                document.getElementById('sim-val-rain24').textContent = tele.rainfall_cum_24hr;
+
+                document.getElementById('sim-input-water').value = tele.water_level_ratio;
+                document.getElementById('sim-val-water').textContent = tele.water_level_ratio;
+
+                document.getElementById('sim-input-rate').value = tele.water_level_rate_change;
+                document.getElementById('sim-val-rate').textContent = tele.water_level_rate_change;
+
+                document.getElementById('sim-input-slope').value = topo.slope_deg;
+                document.getElementById('sim-val-slope').textContent = topo.slope_deg;
+            }
+        }
+
+        // Global Importance Drawer & Chart
+        let globalImportanceLoaded = false;
+        async function toggleGlobalImportance() {
+            const drawer = document.getElementById('global-importance-drawer');
+            const chevron = document.getElementById('global-chevron');
+            drawer.classList.toggle('hidden');
+            chevron.classList.toggle('rotate-180');
+
+            if (!globalImportanceLoaded) {
+                try {
+                    const res = await fetch(`${API_BASE}/api/shap/global`);
+                    const data = await res.json();
+                    renderGlobalChart(data.global_importance);
+                    globalImportanceLoaded = true;
+                } catch (err) {
+                    console.warn("Could not fetch global shap:", err);
+                }
+            }
+        }
+
+        function renderGlobalChart(items) {
+            const ctx = document.getElementById('global-importance-chart').getContext('2d');
+            const labels = items.map(i => i.label);
+            const pcts = items.map(i => i.pct);
+
+            globalChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Global Decision Weight (%)',
+                        data: pcts,
+                        backgroundColor: 'rgba(168, 85, 247, 0.8)',
+                        borderColor: '#A855F7',
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: {
+                            ticks: { color: '#94A3B8', font: { size: 9 } },
+                            grid: { color: 'rgba(255,255,255,0.06)' }
+                        },
+                        y: {
+                            ticks: { color: '#CBD5E1', font: { size: 9 } },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Map Helper Navigation (Prominent Focus Buttons)
+        function jumpToStation(regionName) {
+            const st = stationsList.find(s => s.region === regionName);
+            if (st) {
+                map.flyTo([st.lat, st.lon], 9, { duration: 1.2 });
+                handleMapClick(st.lat, st.lon);
+            }
+        }
+
+        function focusRegion(region) {
+            if (region === 'himalayas') {
+                map.flyTo([31.5, 78.0], 7, { duration: 1.2 });
+            } else if (region === 'ghats') {
+                map.flyTo([10.5, 76.8], 7, { duration: 1.2 });
+            } else if (region === 'northeast') {
+                map.flyTo([26.0, 91.5], 7, { duration: 1.2 });
+            }
+        }
+
+        function resetMapView() {
+            map.flyTo([28.5, 82.0], 5, { duration: 1.0 });
+        }
+
+        function round(val, d) {
+            return Number(Math.round(val + 'e' + d) + 'e-' + d);
+        }
+
+        // Run On Load
+        window.addEventListener('DOMContentLoaded', () => {
+            startDigitalClock();
+            initMap();
+            loadStations();
+        });
+    </script>
+</body>
+</html>
